@@ -35,28 +35,95 @@ class Presto(BaseQueryRunner):
     noop_query = "SHOW TABLES"
 
     @classmethod
+    def name(cls):
+        return "Presto"
+
+    @classmethod
     def configuration_schema(cls):
         return {
             "type": "object",
             "properties": {
-                "host": {"type": "string"},
-                "protocol": {"type": "string", "default": "http"},
-                "port": {"type": "number"},
-                "schema": {"type": "string"},
-                "catalog": {"type": "string"},
-                "username": {"type": "string"},
-                "password": {"type": "string"},
+                "host": {
+                    "type": "string",
+                    "title": "Host: The hostname to connect to e.g. `presto.example.com`"
+                },
+                "port": {
+                    "type": "number",
+                    "default": "8080",
+                    "title": "Port to connect to. Defaults to 8080"
+                },
+                "protocol": {
+                    "type": "string",
+                    "default": "http",
+                    "title": "Protocol: Network protocol. Valid options at `http` and `https`. Defaults to `http`"
+                },
+                "catalog": {
+                    "type": "string",
+                    "default": "hive",
+                    "title": "Catalog: Catalog within Presto. Defaults to `hive`"
+                },
+                "schema": {
+                    "type": "string",
+                    "default": "default",
+                    "title": "Schema: Defaults to `default`"
+                },
+                "source": {
+                    "type": "string",
+                    "default": "redash",
+                    "title": "Source: Artibrary identifiier. Defaults to `redash`"
+                },
+                "kerberos_remote_service_name": {
+                    "type": "string",
+                    "title": "Kerberos Remote Service Name"
+                },
+                "kerberos_principal": {
+                    "type": "string",
+                    "title": "Kerberos Principal."
+                },
+                "kerberos_config_path": {
+                    "type": "string",
+                    "default": "/etc/krb5.conf",
+                    "title": "Kerberos Config Path"
+                },
+                "kerberos_keytab_path": {
+                    "type": "string",
+                    "title": "Kerberos Keytab Path"
+                },
+                "kerberos_credential_cache_path": {
+                    "type": "string",
+                    "title": "Kerberos Credential Cache Path"
+                },
+                "kerberos_use_canonical_hostname": {
+                    "type": "string",
+                    "default": "true",
+                    "title": "Kerberos Use Canonical Hostname: Enabled by default"
+                },
+                "user_impersonation": {
+                    "type": "boolean",
+                    "default": "true",
+                    "title": "Enable User Impersonation. Enabled by default",
+                },
             },
             "order": [
                 "host",
-                "protocol",
                 "port",
+                "protocol",
+                "catalog",
+                "schema",
                 "username",
                 "password",
-                "schema",
-                "catalog",
+                "source",
+                "auth_mechanism",
+                "kerberos_remote_service_name",
+                "kerberos_principal",
+                "kerberos_config_path",
+                "kerberos_keytab_path",
+                "kerberos_credential_cache_path",
+                "kerberos_use_canonical_hostname",
+                "user_impersonation",
             ],
             "required": ["host"],
+            "secret": ["password"]
         }
 
     @classmethod
@@ -69,8 +136,7 @@ class Presto(BaseQueryRunner):
 
     def get_schema(self, get_stats=False):
         schema = {}
-        query = """
-        SELECT table_schema, table_name, column_name
+        query = """        SELECT table_schema, table_name, column_name
         FROM information_schema.columns
         WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
         """
@@ -93,14 +159,29 @@ class Presto(BaseQueryRunner):
         return list(schema.values())
 
     def run_query(self, query, user):
+        query = query.encode('utf-8')
+
+        enable_user_impersonation = self.configuration.get("user_impersonation")
+        principal_username = None
+        if enable_user_impersonation and user is not None:
+            principal_username = user.name
+
         connection = presto.connect(
-            host=self.configuration.get("host", ""),
+            host=self.configuration.get("host"),
             port=self.configuration.get("port", 8080),
-            protocol=self.configuration.get("protocol", "http"),
-            username=self.configuration.get("username", "redash"),
-            password=(self.configuration.get("password") or None),
+            username=self.configuration.get("username"),
+            principle_username=principal_username,
             catalog=self.configuration.get("catalog", "hive"),
             schema=self.configuration.get("schema", "default"),
+            source=self.configuration.get("source", "redash"),
+            protocol=self.configuration.get("protocol", "http"),
+            password=self.configuration.get("password"),
+            KerberosRemoteServiceName = self.configuration.get("kerberos_remote_service_name"),
+            KerberosPrincipal = self.configuration.get("kerberos_principal"),
+            KerberosConfigPath = self.configuration.get("kerberos_config_path"),
+            KerberosKeytabPath = self.configuration.get("kerberos_keytab_path"),
+            KerberosCredentialCachePath = self.configuration.get("kerberos_credential_cache_path"),
+            KerberosUseCanonicalHostname = self.configuration.get("kerberos_use_canonical_hostname"),
         )
 
         cursor = connection.cursor()

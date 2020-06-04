@@ -249,6 +249,9 @@ class PostgreSQL(BaseSQLQueryRunner):
         return connection
 
     def run_query(self, query, user):
+
+        #query = query.encode('utf-8')
+
         connection = self._get_connection()
         _wait(connection, timeout=10)
 
