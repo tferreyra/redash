@@ -40,27 +40,65 @@ class Presto(BaseQueryRunner):
                 'host': {
                     'type': 'string'
                 },
+                'port': {
+                    'type': 'number',
+                    'default': '8080'
+                },
                 'protocol': {
                     'type': 'string',
                     'default': 'http'
                 },
-                'port': {
-                    'type': 'number'
+                'catalog': {
+                    'type': 'string',
+                    'default': 'hive'
                 },
                 'schema': {
                     'type': 'string'
                 },
-                'catalog': {
-                    'type': 'string'
+                'source': {
+                    'type': 'string',
+                    'default': 'redash'
                 },
-                'username': {
-                    'type': 'string'
+                "kerberos_remote_service_name": {
+                    "type": "string"
                 },
-                'password': {
-                    'type': 'string'
+                "kerberos_principal": {
+                    "type": "string"
+                },
+                "kerberos_config_path": {
+                    "type": "string",
+                    "default": "/etc/krb5.conf"
+                },
+                "kerberos_keytab_path": {
+                    "type": "string"
+                },
+                "kerberos_credential_cache_path": {
+                    "type": "string"
+                },
+                "kerberos_use_canonical_hostname": {
+                    "type": "boolean",
+                    "default": "true"
+                },
+                "user_impersonation": {
+                    "type": "boolean",
+                    "default": "true"
                 },
             },
-            'order': ['host', 'protocol', 'port', 'username', 'password', 'schema', 'catalog'],
+            'order': [
+                'host',
+                'port',
+                'protocol',
+                'catalog',
+                'schema',
+                'source',
+                'kerberos_remote_service_name',
+                'kerberos_principal',
+                'kerberos_config_path',
+                'kerberos_keytab_path',
+                'kerberos_credential_cache_path',
+                'kerberos_use_canonical_hostname',
+                'user_impersonation'
+                ],
             'required': ['host']
         }
 
@@ -98,14 +136,26 @@ class Presto(BaseQueryRunner):
         return schema.values()
 
     def run_query(self, query, user):
+
+        enable_user_impersonation = self.configuration.get("user_impersonation")
+        principal_username = None
+        if enable_user_impersonation and user is not None:
+            principal_username = user.name
+
         connection = presto.connect(
             host=self.configuration.get('host', ''),
             port=self.configuration.get('port', 8080),
             protocol=self.configuration.get('protocol', 'http'),
-            username=self.configuration.get('username', 'redash'),
-            password=(self.configuration.get('password') or None),
             catalog=self.configuration.get('catalog', 'hive'),
-            schema=self.configuration.get('schema', 'default'))
+            schema=self.configuration.get('schema', 'default'),
+            source=self.configuration.get("source", "redash"),
+            KerberosRemoteServiceName = self.configuration.get("kerberos_remote_service_name"),
+            KerberosPrincipal = self.configuration.get("kerberos_principal"),
+            KerberosConfigPath = self.configuration.get("kerberos_config_path"),
+            KerberosKeytabPath = self.configuration.get("kerberos_keytab_path"),
+            KerberosCredentialCachePath = self.configuration.get("kerberos_credential_cache_path"),
+            KerberosUseCanonicalHostname = self.configuration.get("kerberos_use_canonical_hostname"),
+        )
 
         cursor = connection.cursor()
 

@@ -24,5 +24,10 @@ COPY --from=frontend-builder /frontend/client/dist /app/client/dist
 RUN chown -R redash /app
 USER redash
 
+ENV LC_ALL=en_CA.UTF-8
+ENV LANG=en_CA.UTF-8
+ENV LANGUAGE=en_CA.UTF-8
+ENV PYTHONIOENCODING=utf-8
+
 ENTRYPOINT ["/app/bin/docker-entrypoint"]
 CMD ["server"]

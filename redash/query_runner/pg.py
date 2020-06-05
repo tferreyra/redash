@@ -167,6 +167,9 @@ class PostgreSQL(BaseSQLQueryRunner):
         return schema.values()
 
     def _get_connection(self):
+        #psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
+        #psycopg2.extensions.register_type(psycopg2.extensions.UNICODEARRAY)
+
         connection = psycopg2.connect(
             user=self.configuration.get('user'),
             password=self.configuration.get('password'),
@@ -176,9 +179,14 @@ class PostgreSQL(BaseSQLQueryRunner):
             sslmode=self.configuration.get('sslmode'),
             async_=True)
 
+        #connection.set_client_encoding('UTF8')
+
         return connection
 
     def run_query(self, query, user):
+
+        #query = query.encode('utf-8')
+
         connection = self._get_connection()
         _wait(connection, timeout=10)
 
